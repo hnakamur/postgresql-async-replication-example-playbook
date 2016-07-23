@@ -1,4 +1,4 @@
 standby_mode = 'on'
 primary_conninfo = 'host={{ postgresql_peer_ipaddr }} port={{ postgresql_port }} user={{ postgresql_replication_user }}'
 recovery_target_timeline='latest'
-restore_command = 'scp {{ postgresql_peer_ipaddr }}:{{ postgresql_archive_dir }}/%f %p'
+restore_command = '/usr/local/bin/my_restore {{ postgresql_peer_ipaddr }}:{{ postgresql_archive_dir }}/%f %p'
