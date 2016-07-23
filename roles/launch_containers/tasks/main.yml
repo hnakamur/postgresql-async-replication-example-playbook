@@ -1,0 +1,4 @@
+---
+- include: launch_containers.yml
+  tags:
+    - launch_containers

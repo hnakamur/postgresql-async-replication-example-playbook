@@ -1,0 +1,6 @@
+[development]
+pgsql1 postgresql_peer_ipaddr={{ ipv4_address_pgsql2 }} postgressql_master_standby_type=master
+pgsql2 postgresql_peer_ipaddr={{ ipv4_address_pgsql1 }} postgressql_master_standby_type=standby
+
+[development:vars]
+ansible_connection=lxd
