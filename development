@@ -1,6 +1,0 @@
-[development]
-pgsql1 postgresql_peer_ipaddr=10.155.92.45  postgressql_master_standby_type=master
-pgsql2 postgresql_peer_ipaddr=10.155.92.224 postgressql_master_standby_type=standby
-
-[development:vars]
-ansible_connection=lxd
