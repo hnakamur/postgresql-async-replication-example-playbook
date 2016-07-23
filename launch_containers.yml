@@ -1,0 +1,10 @@
+---
+# NOTE: This playbook is NOT idempotent.
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: Launch two LXD containers for testing PostgreSQL replication
+      command: lxc launch images:centos/7/amd64 {{ item }}
+      with_items:
+        - pgsql1
+        - pgsql2

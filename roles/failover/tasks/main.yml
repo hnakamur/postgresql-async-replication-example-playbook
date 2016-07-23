@@ -1,0 +1,4 @@
+---
+- include: failover.yml
+  tags:
+    - failover

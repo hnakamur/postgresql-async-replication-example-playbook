@@ -1,0 +1,10 @@
+---
+# NOTE: This playbook is NOT idempotent.
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: Remove LXD containers
+      command: lxc delete -f {{ item }}
+      with_items:
+        - pgsql1
+        - pgsql2

@@ -1,0 +1,4 @@
+---
+- include: start_new_standby.yml
+  tags:
+    - start_new_standby

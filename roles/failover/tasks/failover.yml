@@ -1,0 +1,12 @@
+---
+- name: Let the master PostgreSQL server crash for testing failover
+  command: '"{{ postgresql_bin_dir }}/pg_ctl" stop -m immediate -D "{{ postgresql_data_dir }}"'
+  become: true
+  become_user: postgres
+  when: postgressql_master_standby_type == 'master'
+
+- name: Promote the standby PostgreSQL server to the new master
+  command: '"{{ postgresql_bin_dir }}/pg_ctl" promote -D "{{ postgresql_data_dir }}"'
+  become: true
+  become_user: postgres
+  when: postgressql_master_standby_type == 'standby'

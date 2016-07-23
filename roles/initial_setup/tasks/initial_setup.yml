@@ -1,0 +1,103 @@
+---
+- name: Install basic packages
+  yum: name={{ item }} state=present
+  with_items:
+    - sudo
+    - openssh-server
+    - python-psycopg2
+
+- name: Do not require tty for root user
+  copy: src=sudoers_root dest=/etc/sudoers.d/00_root owner=root group=root mode=0440
+
+- name: Start and enable sshd service
+  service: name=sshd state=started enabled=true
+
+- name: Create directory for download
+  file: path={{ postgresql_download_dir }} state=directory
+
+- name: Download PostgreSQL yum repository rpm
+  get_url: url={{ postgresql_repo_rpm_url }} dest={{ postgresql_repo_rpm_path }}
+
+- name: Install PostgreSQL yum repository rpm
+  yum: name={{ postgresql_repo_rpm_path }} state=present
+
+- name: Install PostgreSQL rpm
+  yum: name={{ item }} state=present
+  with_items:
+    - postgresql{{ postgresql_major_minor_version }}-server
+    - postgresql{{ postgresql_major_minor_version }}-contrib
+
+- name: Check PostgreSQL master database exists
+  stat: path={{ postgresql_data_dir }}/PG_VERSION
+  register: postgresql_master_db_st
+  when: postgressql_master_standby_type == 'master'
+
+- name: Create PostgreSQL database directories
+  file: path={{ item }} state=directory owner=postgres group=postgres mode=0700
+  with_items:
+    - "{{ postgresql_postgres_home }}"
+    - "{{ postgresql_postgres_home }}/.ssh"
+    - "{{ postgresql_data_dir }}"
+    - "{{ postgresql_archive_dir }}"
+    - "{{ postgresql_backup_dir }}"
+
+- name: Put .pgpass file to be used for pg_basebackup non-interactivelly
+  template: src=pgpass.j2 dest={{ postgresql_postgres_home }}/.pgpass owner=postgres group=postgres mode=0400
+
+- name: Put ssh key pairs for postgres user
+  template: src={{ item }}.j2 dest={{ postgresql_postgres_home }}/.ssh/{{ item }} owner=postgres group=postgres mode=0400
+  register: postgresql_ssh_key
+  with_items:
+    - id_ed25519
+    - authorized_keys
+
+- name: Run ssh to create known_hosts
+  command: ssh -o StrictHostKeyChecking=no -o PasswordAuthentication=no {{ postgresql_peer_ipaddr }} id
+  become: true
+  become_user: postgres
+  when: "{{ postgresql_ssh_key.changed }}"
+
+- name: Initialize PostgreSQL master database
+  command: "{{ postgresql_bin_dir }}/postgresql{{ postgresql_major_minor_version }}-setup initdb"
+  when: postgressql_master_standby_type == 'master' and not postgresql_master_db_st.stat.exists
+
+- name: Update postgresql config files at master
+  template: src={{ item.src }}.j2 dest={{ postgresql_data_dir }}/{{ item.dest }} owner=postgres group=postgres mode=0644
+  with_items:
+    - { src: pg_hba.conf,     dest: pg_hba.conf }
+    - { src: postgresql.conf, dest: postgresql.conf }
+    - { src: recovery.conf,   dest: recovery.done }
+  when: postgressql_master_standby_type == 'master'
+
+- name: Start and enable for master PostgreSQL service
+  service: name=postgresql-{{ postgresql_major_dot_minor_version }} state=started enabled=true
+  when: postgressql_master_standby_type == 'master'
+
+- name: Create PostgreSQL user for replication
+  postgresql_user: name={{ postgresql_replication_user }} password={{ postgresql_replication_password }} role_attr_flags=LOGIN,REPLICATION state=present
+  become: true
+  become_user: postgres
+  when: postgressql_master_standby_type == 'master'
+
+- name: Check PostgreSQL standby database exists
+  stat: path={{ postgresql_data_dir }}/PG_VERSION
+  register: postgresql_standby_db_st
+  when: postgressql_master_standby_type == 'standby'
+
+- name: Run pg_basebackup
+  command: '"{{ postgresql_bin_dir }}/pg_basebackup" -h {{ postgresql_peer_ipaddr }} -p {{ postgresql_port }} -U {{ postgresql_replication_user }} -D "{{ postgresql_data_dir }}" --xlog --checkpoint=fast'
+  become: true
+  become_user: postgres
+  when: postgressql_master_standby_type == 'standby' and not postgresql_standby_db_st.stat.exists
+
+- name: Update postgresql config files at standby
+  template: src={{ item }}.j2 dest={{ postgresql_data_dir }}/{{ item }} owner=postgres group=postgres mode=0644
+  with_items:
+    - pg_hba.conf
+    - postgresql.conf
+    - recovery.conf
+  when: postgressql_master_standby_type == 'standby'
+
+- name: Start and enable for standby PostgreSQL service
+  service: name=postgresql-{{ postgresql_major_dot_minor_version }} state=started enabled=true
+  when: postgressql_master_standby_type == 'standby'

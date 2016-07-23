@@ -1,0 +1,19 @@
+---
+- name: Check PostgreSQL service is running
+  command: systemctl is-active postgresql-{{ postgresql_major_dot_minor_version }}
+  register: is_postgresql_service_running
+  when: postgressql_master_standby_type == 'standby'
+  failed_when: is_postgresql_service_running.rc not in [0, 3]
+
+- name: Show error message and exit when PostgreSQL server is already running at the standby server
+  debug: msg='PostgreSQL is already running at standby server. Please make sure to update postgressql_master_standby_type host variables after failover.'
+  when: postgressql_master_standby_type == 'standby' and is_postgresql_service_running.rc == 0
+  failed_when: True
+
+- name: Rename recovery.done to recovery.conf
+  command: mv {{ postgresql_data_dir }}/recovery.done {{ postgresql_data_dir }}/recovery.conf 
+  when: postgressql_master_standby_type == 'standby'
+
+- name: Start and enable PostgreSQL service
+  service: name=postgresql-{{ postgresql_major_dot_minor_version }} state=started enabled=true
+  when: postgressql_master_standby_type == 'standby'

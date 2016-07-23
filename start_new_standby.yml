@@ -1,0 +1,5 @@
+---
+# NOTE: This playbook is NOT idempotent.
+- hosts: all
+  roles:
+    - start_new_standby

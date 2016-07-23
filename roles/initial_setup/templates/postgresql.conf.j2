@@ -628,3 +628,11 @@ default_text_search_config = 'pg_catalog.english'
 #------------------------------------------------------------------------------
 
 # Add settings for extensions here
+listen_addresses = '*'
+port = {{ postgresql_port }}
+logging_collector = on
+hot_standby = on
+wal_level = hot_standby
+max_wal_senders = 2
+archive_mode = on
+archive_command = 'cp %p {{ postgresql_archive_dir }}/%f'
